@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/langchain4j?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: root
+    password: 1234
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      table-underline: true
+
+langchain4j:
+  community:
+    dashscope:
+      streaming-chat-model:
+        api-key: sk-0648ff1e3274451b96eb2a2bd75dadca
+        model-name: qwen-max
+        base-url: https://dashscope.aliyuncs.com/api/v1
+      chat-model:
+        api-key: sk-0648ff1e3274451b96eb2a2bd75dadca
+        model-name: qwen-max
+        base-url: https://dashscope.aliyuncs.com/api/v1
