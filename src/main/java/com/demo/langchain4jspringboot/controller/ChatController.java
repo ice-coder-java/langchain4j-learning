@@ -148,4 +148,18 @@ public class ChatController {
         });
     }
 
+    @Autowired
+    private AiConfig.AssistantEmbedding assistantEmbedding;
+
+    @RequestMapping(value = "/memory_embedding_streaming_chat", produces = "text/stream;charset=UTF-8")
+    public Flux<String> memoryEmbeddingStreamingChat(@RequestParam(defaultValue = "你是谁") String question) {
+        TokenStream stream = assistantEmbedding.chatStream(question);
+        return Flux.create(sink -> {
+            stream.onPartialResponse(sink::next)
+                    .onCompleteResponse(chatResponse -> sink.complete())
+                    .onError(sink::error)
+                    .start();
+        });
+    }
+
 }

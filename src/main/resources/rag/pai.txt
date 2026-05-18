@@ -1,0 +1,72 @@
+项目名称：医路通·医学知识共享平台（2025.3 - 2025.7）
+技术栈：Spring Boot、MyBatis-Plus、MySQL、Redis、RabbitMQ、OSS、Caffeine
+
+项目描述：医路通是一个面向医学院师生与临床工作者的医学知识分享与交流社区，采用前后端分离架构，支持文章发布、互动评论、文章推荐等多样化服务。
+
+1、实现支持图片智能转链的 Markdown 编辑器，用户粘贴非本地图片可自动上传至阿里云 OSS；借助线程池和异步任务CompletableFuture 提升高并发场景下文件上传效率，配合 Caffeine 本地缓存进一步优化响应性能。
+
+3、构建基于 RabbitMQ 的异步消息解耦机制，将点赞、评论、收藏等行为异步化处理，降低主流程延迟，提升系统吞吐能力。
+
+2、基于 AOP + SpEL 表达式实现接口访问日志切面，通过 TraceID 全链路追踪请求流程，提升系统可观测性，便于问题排查。
+
+4、利用 Redis 的 ZSet 实现用户活跃度排行榜，结合幂等控制避免重复计分；通过 Spring Event 事件驱动模型触发活跃度更新，提升业务解耦性。
+
+5、设计 Caffeine + Redis 多级缓存架构，用于高频计数场景（如关注/粉丝数、文章点赞/收藏数），显著降低数据库压力。
+
+6、通过 Spring MVC 拦截器实现统一身份校验，采用 HandlerExceptionResolver 全局异常处理机制，保障系统健壮性与用户体验一致性。
+
+
+1、实现自定义的 Markdown 编辑器，通过复制粘贴即可将非同源的图片上传至 OSS 实现智能化转链，并利用Caffeine 提高图片上传效率；（前端有一个组件库实现复制粘贴，后端从正文中通过JDK里的一个工具matcher，正则表达式匹配![]放进集合中，然后并发的图片转存，判断是否是外网http开头的需要转链的图片，根据url拿到一个流，根据图片的流，用SHA-256算法生成唯一的摘要，上传完成后将摘要和图片url存入Caffeine缓存，避免五分钟内重复上传同样的图片，文件名md5算法生成+流+配置文件和封装的读取配置的类生成OSSClient，上传到oss）
+
+并借助线程池和异步任务CompletableFuture 提升系统的高并发能力；
+（封装一个异步工具，里面创建一个线程池（核心线程数cpu*2，最大线程数50，等待队列SynchronousQueue，拒绝策略CallerRunsPolicy），需要异步执行任务的时候实际线程池的execute，
+异步工具类的默认线程池构建, 参数选择原则:
+1. 技术派不存在cpu密集型任务，大部分操作都设计到 redis/mysql 等io操作
+2. 统一的异步封装工具，这里的线程池是一个公共的执行仓库，不希望被其他的线程执行影响，因此队列长度为0, 核心线程数满就创建线程执行，超过最大线程，就直接当前线程执行
+3. 同样因为属于通用工具类，再加上技术派的异步使用的情况实际上并不是非常饱和的，因此空闲线程直接回收掉即可；大部分场景下，cpu * 2的线程数即可满足要求了
+首页加载需要大量时间，在异步工具中定义了一个类将CompletableFuture做了封装，定义一个类CompletableFutureBridge，里面维护一个CompletableFuture的CopyOnWriteArrayList，CompletableFuture.runAsync(Runnable runnable,Executor executor)返回一个CompletableFuture，往这个集合里添加CompletableFuture并指定线程池，再CompletableFuture.allOf() 传入这个集合等待里面所有任务执行完毕。）
+
+3、将用户评论、点赞、收藏、系统消息发送到 RabbitMQ，实现消息的异步解耦；（弄了一个配置类读取配置，一开始我是想法是双重检查锁创建每个RoutingKey的单例ConnectionFactory保存在一个ConcurrentHashMap中，用它创建connection、channal，声明对应的交换机和路由键，发布消息，最后关闭链接和通道，封装成了RabbitmqService，消费消息就异步创建一个新的线程while true监听消息，创建queue绑定到交换机，消费消息的逻辑。但是发现这种情况下频繁创建链接会有大量的未关闭的链接，所以用LinkedBlockingQueue做了一个连接池，项目启动时就完成了所有链接的创建，只要从里面取和还就行）
+
+2、通过 AOP + TraceID +SpEL表达式 记录接口访问日志，实现任务的追踪、监控和诊断。（TraceID=服务器 IP + 产生ID时的时间 + 当前进程号 + 自增序列，在请求进入系统时生成，通过一个过滤器记录在MDC中（本质是InheritableThreadLocal<Map<String, String>>，线程私有），拦截自定义@MdcDot注解，有一个bizCode的参数可以填入SpEL表达式表示日志要打印某一个参数，可以从连接点拿到当前方法的参数值，spring中有一个ParameterNameDiscoverer可以拿到参数名，一一对应放进一个上下文StandardEvaluationContext中，就可以利用spring中的ExpressionParser通过之前填入的SpEL表达式进行匹配，拿到想要的参数，依然记录到MDC中，自定义日志的输出格式，从MDC中获取traceid和bizcode，输出类名、方法名以及执行耗时）
+
+4、通过 Redis 的 zset 实现用户活跃度排行（加减分操作的时候就使用spring的事件监听机制，定义一个message的类，这个类里面有一个枚举类枚举此次的操作类型和泛型记录这次操作相关的文章、用户、评论，Listener里switch做大量的判断，再将这次的操作封装成一个能包含所有活动的对象，做if判断是否为null，比如说文章id不为null，再判断点赞不为null，那就定位到是什么活动了，知道应该加多少分了，活跃度作为score，key：当天，value：userid，还有一个hash结构防止重复，key：userid+时间，field：活动（点赞、评论、收藏），value：加减的分数，加分的话需要判断这个操作要之前没有才能加分，扣分的话判断之前有这个操作才能扣分，再将zset中的分数进行加减）
+
+引入 Caffeine + Redis 构成多级缓冲，用于计数统计（关注数、粉丝数、发布文章数、文章点赞数、文章收藏数）。（redis的incr命令是原子操作，线程安全，和活跃度共用一个message的类，Listener里switch做判断，去完成活跃度和计数加减，将二级缓存抽象成一个统一的组件。hash结构，key：userid，field：关注数、粉丝数、获赞数、value：数字。设计一个 CacheManager 作为核心入口，提供 get、put、evict 等基本操作，执行先查本地缓存，再查分布式缓存，再重建本地缓存，先修改redis，再删除本地缓存。redis永不过期，每天凌晨定时任务保证缓存和数据库数据一致性）
+借助 Redis 的 incr 实现用户、文章的计数器，并通过 ApplicationEvent 消息机制实现业务解耦；通过 cron 定时器在每日凌晨进行 Redis 和 MySQL 的数据强一致性更新。
+
+5、通过Spring MVC的拦截器实现身份和登录校验。（preHandle方法有一个handler的参数，表示处理这个请求的处理器，通过反射拿到一个自定义的permission注解，其中有一个参数表示权限是admin、user、all，从threadlocal中拿到用户是否登录以及他的身份信息，做一些判断，不符合要求的话返回错误信息，但是这个方法的返回值是要不要将请求继续，所以错误信息要手动在response中写入返回类型json和json格式的响应体）
+6、采用 HandlerExceptionResolver 的全局异常处理策略，提高代码的健壮性，用户体验得到了很好的保证；（比注解RestControllerAdvice、ExceptionHandler方式：能够处理Spring MVC整个请求处理链中的异常，可以处理各种底层Servlet异常，但是只能返回ModelAndView，所以要在response中手动写入json格式的异常数据）
+
+
+
+7、基于 ThreadLocal 在登录校验拦截器中封装线程隔离的全局上下文，以便在线程内部存储用户信息，减少用户信息的数据库查询次数。
+
+集成本地缓存 Guava 和 Caffeine，有效提高服务的吞吐率；（分类：可以重写Guava的load方法，如果没有id对应的分类对象，自动调用load方法去建立cache。侧边栏（热门文章、精选文章）：Caffeine+Cacheable注解）
+
+为了满足社区在高并发场景下业务 ID 的唯一性和可追溯性，我们实现了一套基于雪花算法（Snowflake）的 ID 生成方案，进一步降低了ID生成的延迟。
+
+通过验证码和前端保持半长链接映射关系，当用户扫码关注公众号并输入验证码后，发起回调，识别用户信息并找到对应半长链接，实现系统自动登录；
+
+
+src/main/java/com/github/paicoding/forum/web/admin/rest/AdminLoginController.java
+src/main/java/com/github/paicoding/forum/web/controller/login/pwd/LoginRestController.java
+---调用的是同一个service方法
+
+src/main/java/com/github/paicoding/forum/web/admin/rest/TagSettingRestController.java
+src/main/java/com/github/paicoding/forum/web/admin/rest/CategorySettingRestController.java
+--常规
+
+src/main/java/com/github/paicoding/forum/web/controller/article/rest/ArticleRestController.java
+@PostMapping(path = "post")
+
+src/main/java/com/github/paicoding/forum/web/controller/comment/rest/CommentRestController.java
+@PostMapping(path = "/save") 足迹+事件
+@RequestMapping(path = "list") @RequestMapping(path = "delete") 好像没用
+
+src/main/java/com/github/paicoding/forum/web/hook/filter/ReqRecordFilter.java           记录requestCount，定时任务落库
+src/main/java/com/github/paicoding/forum/web/hook/interceptor/UserStatisticsInterceptor.java             记录pv、uv          
+
+
+原置顶改为推荐，数据库topping_stat字段                 表现为推荐标识
+原推荐改为官方推荐，数据库offical_stat字段             表现为最上面一栏

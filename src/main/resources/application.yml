@@ -23,3 +23,5 @@ langchain4j:
         api-key: sk-0648ff1e3274451b96eb2a2bd75dadca
         model-name: qwen-max
         base-url: https://dashscope.aliyuncs.com/api/v1
+      embedding-model:
+        api-key: sk-0648ff1e3274451b96eb2a2bd75dadca
