@@ -25,7 +25,7 @@ public class Langchain4jSpringbootApplication {
         SpringApplication.run(Langchain4jSpringbootApplication.class, args);
     }
 
-    @Bean
+//    @Bean
     public CommandLineRunner commandLineRunner(QwenEmbeddingModel qwenEmbeddingModel, EmbeddingStore embeddingStore) {
         return args -> {
             Document document = ClassPathDocumentLoader.loadDocument("rag/pai.txt", new TextDocumentParser());
