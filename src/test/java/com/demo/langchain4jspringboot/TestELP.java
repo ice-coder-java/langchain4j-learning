@@ -32,7 +32,7 @@ public class TestELP {
 
         // 创建嵌入模型
         QwenEmbeddingModel embeddingModel = QwenEmbeddingModel.builder()
-                .apiKey("sk-0648ff1e3274451b96eb2a2bd75dadca")
+                .apiKey("")
                 .build();
 
         List<Embedding> content = embeddingModel.embedAll(segments).content();
@@ -53,7 +53,7 @@ public class TestELP {
         });*/
 
         ChatModel model = QwenChatModel.builder()
-                .apiKey("sk-0648ff1e3274451b96eb2a2bd75dadca")
+                .apiKey("")
                 .modelName("qwen3.6-max-preview")
                 .build();
 

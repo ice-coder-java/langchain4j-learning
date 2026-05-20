@@ -8,12 +8,10 @@ import dev.langchain4j.data.document.splitter.DocumentBySentenceSplitter;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Bean;
 
 import java.util.List;
 
@@ -25,7 +23,7 @@ public class Langchain4jSpringbootApplication {
         SpringApplication.run(Langchain4jSpringbootApplication.class, args);
     }
 
-    @Bean
+//    @Bean
     public CommandLineRunner commandLineRunner(QwenEmbeddingModel qwenEmbeddingModel, EmbeddingStore embeddingStore) {
         return args -> {
             Document document = ClassPathDocumentLoader.loadDocument("rag/pai.txt", new TextDocumentParser());

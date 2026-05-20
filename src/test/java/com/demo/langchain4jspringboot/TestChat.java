@@ -23,7 +23,7 @@ public class TestChat {
     public void testdeepseek() {
         OpenAiChatModel model = OpenAiChatModel.builder()
                 .baseUrl("https://api.deepseek.com")
-                .apiKey("sk-8298b5a11ee84b5ca2202908371a8415")
+                .apiKey(System.getenv("DEEPSEEK_API_KEY"))
                 .modelName("deepseek-v4-flash")
                 .build();
         String chat = model.chat("你好，你是谁？");
@@ -34,7 +34,7 @@ public class TestChat {
     public void testqwen() {
         ChatModel model = QwenChatModel.builder()
 //                .baseUrl("https://dashscope.aliyuncs.com/api/v1")
-                .apiKey("sk-0648ff1e3274451b96eb2a2bd75dadca")
+                .apiKey(System.getenv("DASHSCOPE_API_KEY"))
                 .modelName("qwen3.6-max-preview")
                 .build();
         String chat = model.chat("你好，你是谁？");

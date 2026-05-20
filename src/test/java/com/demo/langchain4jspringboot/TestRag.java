@@ -14,7 +14,7 @@ public class TestRag {
     @Test
     public void testEmbedding() {
         QwenEmbeddingModel embeddingModel = QwenEmbeddingModel.builder()
-                .apiKey("sk-0648ff1e3274451b96eb2a2bd75dadca")
+                .apiKey("")
                 .build();
 
         Response<Embedding> embed = embeddingModel.embed("你好，你是谁？");
@@ -26,7 +26,7 @@ public class TestRag {
 
         // 创建嵌入模型
         QwenEmbeddingModel embeddingModel = QwenEmbeddingModel.builder()
-                .apiKey("sk-0648ff1e3274451b96eb2a2bd75dadca")
+                .apiKey("")
                 .build();
 
         // 创建文本片段
